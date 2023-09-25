@@ -40,15 +40,7 @@ class Solver:
                 self.config['Train']['model_save_dir'], model_name,
                 self.model_save_name)
             self.getLogger()
-        elif self.config['mode'] == 'Hyperopt':
-            model_name = self.config['network']
-            name = self.config['name']
-            self.model_save_name = '{}-{}'.format(name, 'Hyper')
-            self.model_save_path = os.path.join(
-                self.config['Train']['model_save_dir'], model_name,
-                self.model_save_name)
-            self.getLogger()
-        else:
+        elif self.config['mode'] == 'Test':
             mode = self.config['mode']
             self.model_save_path = self.config[mode]['model_save_path']
             self.model_save_name = os.path.basename(self.model_save_path)
@@ -85,17 +77,6 @@ class Solver:
     def getValidationDataloader(self):
         validation_list_path = self.config['dataset']['validation_list_path']
         pair_dir = self.config['dataset']['pair_dir']
-
-        # dataset = Dataset(validation_list_path, pair_dir)
-        # self.validation_dataloader = torch.utils.data.DataLoader(
-        #     dataset,
-        #     batch_size=self.config['Train']['batch_size'],
-        #     shuffle=False,
-        #     num_workers=0,
-        #     collate_fn=CollateGPU(transforms=transforms.Compose([
-        #         CentralCropTensor((200, 200), (128, 128)),
-        #     ])),
-        #     pin_memory=False)
 
         dataset = Caseset(validation_list_path, pair_dir,
                           self.config['dataset']['resolution_path'])
@@ -170,45 +151,12 @@ class Solver:
                                    self.config['Test']['verbose'])
         return res
 
-    def hyperopt(self):
-        SaveCheckpoint(self.controller.net, self.model_save_path, 0)
-        hyperparams = self.config[self.config['network']]['hyperparams']
-        n_trials = self.config['Hyperopt']['n_trials']
-        self.getTrainDataloader()
-        self.getValidationDataloader()
-        self.getTestDataloader(self.config['dataset']['validation_list_path'])
-        # early stop
-        earlystop = EarlyStopping(
-            min_delta=self.config['Hyperopt']['earlystop']['min_delta'],
-            patience=self.config['Hyperopt']['earlystop']['patience'],
-            model_save_path=self.model_save_path,
-            verbose=0)
-        max_epoch = self.config['Hyperopt']['max_epoch']
-        lr = self.config['Hyperopt']['lr']
-
-        self.controller.hyperOpt(hyperparams, self.loadCheckpoint, n_trials,
-                                 self.train_dataloader,
-                                 self.validation_dataloader,
-                                 self.test_dataloader, earlystop, self.logger,
-                                 max_epoch, lr)
-
-    def speedTest(self):
-        self.getTestDataloader(self.config['dataset']['testing_list_path'])
-        self.loadCheckpoint(self.controller.net,
-                            self.config['SpeedTest']['epoch'])
-        self.controller.speedTest(self.test_dataloader,
-                                  self.config['SpeedTest']['device'])
-
     def run(self):
         if self.config['mode'] == 'Train':
             self.train()
             self.test()
         elif self.config['mode'] == 'Test':
             self.test()
-        elif self.config['mode'] == 'Hyperopt':
-            self.hyperopt()
-        elif self.config['mode'] == 'SpeedTest':
-            self.speedTest()
 
 
 if __name__ == "__main__":
